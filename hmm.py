@@ -101,9 +101,7 @@ def get_transition_matrix_with_training(state_seq):
                     N[j,k] += 1
 
     #normalize counts to probabilites
-    #print(np.sum(N,axis=1))
     trans_matrix = normalize_by_rows(N)
-    #N = N / np.sum(N,axis=1)
     show_transition_matrix(trans_matrix)
     return trans_matrix       
 
@@ -122,7 +120,6 @@ def get_emission_matrix_with_training(state_seq, symb_seq):
                     N[j,l] += 1
                 pass
     #normalize counts to probabilites
-    #print(f'axis=1 {N.sum(axis=1)}')
     N = N.T / np.sum(N,axis=1)
     show_emission_matrix(N.T)
     return N.T   
@@ -208,7 +205,6 @@ def get_transition_matrix_update(gamma_t, epsilon_t):
     for i in range(states_number):
         trans_matrix[i,:] = epsilon[i,:]/gamma[i]
     
-    #return normalize_by_rows(trans_matrix)
     return trans_matrix
 
 def estimate_model_with_Baum_Welch(symb_seq, states_to_init, iter_numb = 50, 
@@ -225,9 +221,7 @@ def estimate_model_with_Baum_Welch(symb_seq, states_to_init, iter_numb = 50,
         priors, emiss_matrix, trans_matrix = init_BW_randomly(symb_seq, states_to_init)
     
     for i in range(iter_numb):
-        # E[Njk] - epsilon
-        # E[Nj]  - gamma
-       
+
         states, gamma_t, epsilon_t = forwards_backwards(symb_seq, priors, trans_matrix,emiss_matrix)
 
         priors = get_priors_update(gamma_t)
