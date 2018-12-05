@@ -7,3 +7,5 @@ Basic implementation of Forwards, Forward-Backwards, Baum-Welch and model fittin
 The Baum-Welch part needs revision.
 
 To be used carefully and with patience. 
+
+Dependencies: >python3.6, hmmlearn, pandas, numpy, sklearn
