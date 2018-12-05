@@ -279,7 +279,7 @@ if __name__ == "__main__":
         mode = input('Enter the mode number (1,2,3) or "q":')
 
     if mode=='q':
-        exit()          
+        exit('Exiting...')          
         
     elif mode=='1':
     
