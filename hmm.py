@@ -5,7 +5,7 @@ from sklearn.metrics import classification_report
 
 def normalize(u):
     Z = u.sum()
-    return u/Z, Z 
+    return u/Z 
 
 def normalize_by_rows(matrix):
     out_matrix = np.zeros(matrix.shape)
@@ -18,22 +18,19 @@ def forwards(symb_seq, pp, A, B):
 
     K = A.shape[0]
     T = len(symb_seq)
-    Z = pd.Series(np.zeros(T))
-    alpha = pd.DataFrame(np.zeros((K,T)))
-    psit = B[:, symb_seq[0]]
-    alpha.loc[:,0], Z.loc[0] = normalize(psit*pp)
+    alpha = np.zeros((K,T))
+    psit_alpha = B[:, symb_seq[0]]
+    alpha[:,0] = normalize(psit_alpha*pp)
     for t in range(1,T):
-        #print(t)
-        psit = B[:, symb_seq[t]]
-        alpha.loc[:,t], Z.loc[t] = normalize((A.transpose().dot(alpha.loc[:,t-1]))[:,None]*psit)
+        psit_alpha = B[:, symb_seq[t]]
+        alpha[:,t] = normalize( (A.T@alpha[:,t-1])*psit_alpha )
      
-    return alpha.idxmax(axis=0), alpha
+    return np.argmax(alpha, axis=0), alpha
 
 def forwards_backwards(symb_seq, pp, A, B):
  
     K = A.shape[0]
     T = len(symb_seq)
-    Z = np.zeros(T)
     alpha = np.zeros((K,T))
     beta = np.ones((K,T))
     gamma = np.zeros((K,T))
@@ -42,18 +39,22 @@ def forwards_backwards(symb_seq, pp, A, B):
     psit_beta = B[:, symb_seq[T-1]]
 
     #pdb.set_trace()
-    alpha[:,0] = normalize( psit_alpha*pp )[0]
-    beta[:,T-1] = normalize( psit_beta*pp )[0]
+    alpha[:,0] = normalize( psit_alpha*pp )
+    beta[:,T-1] = normalize( psit_beta*pp )
 
     for t in range(1,T):
-        tb = T-t-1
+        #tb = T-t-1
         psit_alpha = B[:, symb_seq[t]]
-        psit_beta = B[:, symb_seq[tb]]
-        alpha[:,t] = normalize( (A.T@alpha[:,t-1])*psit_alpha )[0]
-        beta[:,tb] = normalize( A@(psit_beta*beta[:,tb+1]) )[0]
+        #psit_beta = B[:, symb_seq[tb]]
+        alpha[:,t] = normalize( (A.T@alpha[:,t-1])*psit_alpha )
+        #beta[:,tb] = normalize( A@(psit_beta*beta[:,tb+1]) )
 
+    for tb in reversed(range(T-1)):
+        psit_beta = B[:, symb_seq[tb+1]]
+        beta[:,tb] = normalize( A@(psit_beta*beta[:,tb+1]) )
+        
     for t in range(T):
-        gamma[:,t] = normalize(alpha[:,t]*beta[:,t])[0]    
+        gamma[:,t] = normalize(alpha[:,t]*beta[:,t])
 
     epsilon = get_epsilon_two_slice_marginal(symb_seq, A, B, alpha, beta)
     return np.argmax(gamma, axis=0), gamma, epsilon
@@ -71,7 +72,7 @@ def get_epsilon_two_slice_marginal(symb_seq, A, B, alpha, beta):
     epsilon = np.zeros((T-1,K,K))
 
     for t in range(T-1):
-        epsilon[t, :, :] = normalize(A * np.outer(alpha[:,t], B[:,symb_seq[t+1]]*beta[:,t+1] ) )[0]
+        epsilon[t, :, :] = normalize(A * np.outer(alpha[:,t], B[:,symb_seq[t+1]]*beta[:,t+1] ) )
 
     return epsilon
 
@@ -102,7 +103,7 @@ def get_transition_matrix_with_training(state_seq):
 
     #normalize counts to probabilites
     trans_matrix = normalize_by_rows(N)
-    show_transition_matrix(trans_matrix)
+    #show_transition_matrix(trans_matrix)
     return trans_matrix       
 
 def get_emission_matrix_with_training(state_seq, symb_seq):
@@ -121,7 +122,7 @@ def get_emission_matrix_with_training(state_seq, symb_seq):
                 pass
     #normalize counts to probabilites
     N = N.T / np.sum(N,axis=1)
-    show_emission_matrix(N.T)
+    #show_emission_matrix(N.T)
     return N.T   
 
 def get_priors_stupid_heuristic(state_seq):
@@ -133,7 +134,7 @@ def get_priors_stupid_heuristic(state_seq):
         if state==state_seq[0]:
             priors[i] = 1
 
-    print(f'The estimate of priors:\n{priors}\n')
+    #print(f'The estimate of priors:\n{priors}\n')
     return priors
 
 
@@ -147,19 +148,6 @@ def init_BW_by_training(state_seq, symb_seq):
     show_emission_matrix(emiss_matrix)
     return priors, emiss_matrix, trans_matrix
 
-def init_BW_uniformly(symb_seq, states_seq):
-    
-    states_numb = len(set(states_seq))
-    symb_numb = len(set(symb_seq))
-    
-    trans_matrix = np.full((states_numb, states_numb), 1/states_numb)
-    emiss_matrix = np.full((states_numb, symb_numb), 1/symb_numb)
-    priors = np.full(states_numb, 1/states_numb)
-    
-    show_prior_vector(priors)
-    show_transition_matrix(trans_matrix)
-    show_emission_matrix(emiss_matrix)
-    return priors, emiss_matrix, trans_matrix
 
 def init_BW_randomly(symb_seq, states_seq):
     
@@ -168,7 +156,7 @@ def init_BW_randomly(symb_seq, states_seq):
     
     trans_matrix = normalize_by_rows(np.random.rand(states_numb, states_numb))
     emiss_matrix = normalize_by_rows(np.random.rand(states_numb, symb_numb))
-    priors = normalize(np.random.rand(states_numb))[0]
+    priors = normalize(np.random.rand(states_numb))
     
     show_prior_vector(priors)
     show_transition_matrix(trans_matrix)
@@ -207,8 +195,8 @@ def get_transition_matrix_update(gamma_t, epsilon_t):
     
     return trans_matrix
 
-def estimate_model_with_Baum_Welch(symb_seq, states_to_init, iter_numb = 50, 
-                                   training_init = 0, init_sample_number = 200):
+def estimate_model_with_Baum_Welch(symb_seq, states_to_init, training_init = 1,
+                                   init_sample_number = 100, iter_lim = 100, threshold = 0.001):
 
     if training_init:
         print(f'Initiating BW algorithm with #{init_sample_number} samples\n---------------')
@@ -220,24 +208,43 @@ def estimate_model_with_Baum_Welch(symb_seq, states_to_init, iter_numb = 50,
         print(f'Initiating BW algorithm with randomly filled probabilities\n---------------')
         priors, emiss_matrix, trans_matrix = init_BW_randomly(symb_seq, states_to_init)
     
-    for i in range(iter_numb):
-
+    iter = 0
+    max_diff = 1
+    while (iter < iter_lim and max_diff > threshold):
+        
+        old = {'priors': priors, 
+                      'trans' : trans_matrix,
+                      'emiss' : emiss_matrix}
+        
+        iter += 1
+        
         states, gamma_t, epsilon_t = forwards_backwards(symb_seq, priors, trans_matrix,emiss_matrix)
 
         priors = get_priors_update(gamma_t)
         trans_matrix = get_transition_matrix_update(gamma_t, epsilon_t)
 
         emiss_matrix = get_emission_matrix_update(symb_seq, gamma_t, emiss_matrix.shape)
+        
+        max_diff = max([np.max(abs(old['priors']- priors)),
+                           np.max(abs(old['trans']- trans_matrix)), 
+                           np.max(abs(old['emiss']- emiss_matrix))])
+    
+
     
     
-    print(f'BW after {iter_numb} iterations yielded to ...')
+    print(f'BW after {iter} iterations yielded to ...')
     show_prior_vector(priors)
     show_transition_matrix(trans_matrix)
     show_emission_matrix(emiss_matrix)
    
     return priors, trans_matrix, emiss_matrix
 
-def set_hmm_model():
+def print_hmm_model(model):
+    show_prior_vector(model.startprob_)
+    show_transition_matrix(model.transmat_)
+    show_emission_matrix(model.emissionprob_)
+
+def set_hmm_model_example():
         
     model = hmm.MultinomialHMM(n_components=2)
     #state_names = ['usual','loaded']
@@ -250,9 +257,7 @@ def set_hmm_model():
                                     [5/10, 1/10, 1/10, 1/10, 1/10, 1/10]])
     
     print('The model has been set with the following parameters:')
-    show_prior_vector(model.startprob_)
-    show_transition_matrix(model.transmat_)
-    show_emission_matrix(model.emissionprob_)
+    print_hmm_model(model)
     
     return model
     
@@ -260,7 +265,7 @@ def main():
     
     pd.set_option('display.max_columns', 6)
 
-    model = set_hmm_model()
+    model = set_hmm_model_example()
 
     #generate samples from the model
     sample_number = 2000
