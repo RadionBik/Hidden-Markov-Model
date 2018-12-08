@@ -256,8 +256,8 @@ def set_hmm_model():
     
     return model
     
-if __name__ == "__main__":
-        
+def main():
+    
     pd.set_option('display.max_columns', 6)
 
     model = set_hmm_model()
@@ -313,10 +313,15 @@ if __name__ == "__main__":
   
     elif mode=='2':
         
-        trans_matrix_estim = get_transition_matrix_with_training(gener_states)
+        get_transition_matrix_with_training(gener_states)
         
-        emiss_matrix_estim = get_emission_matrix_with_training(gener_states, gener_seq)
+        get_emission_matrix_with_training(gener_states, gener_seq)
         
     elif mode=='3':
         
         estimate_model_with_Baum_Welch(gener_seq, gener_states)
+
+    
+if __name__ == "__main__":
+        
+    main()
