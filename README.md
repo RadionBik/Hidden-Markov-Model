@@ -2,7 +2,7 @@
 
 Inspired by the Murphy's book on machine learning.
 
-Basic implementation of Forwards, Forward-Backwards, Baum-Welch and model fitting from known states and data for discrete probabilities (Multonoulli).
+Basic implementation of Forwards, Forward-Backwards, Baum-Welch and model fitting from known states and data for discrete probabilities (Multinoulli).
 
 To be used carefully and with patience. 
 
